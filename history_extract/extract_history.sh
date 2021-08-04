@@ -5,7 +5,7 @@
 # File:    wspl_extract_history.sh
 # Date:    5 Aug 2021
 # Author:  Douglas Kruger
-# Version: 1.2
+# Version: 1.4
 #
 # Description:
 # This script exports out the history data.
@@ -37,7 +37,7 @@ export DATA_TYPES="float boolean choice long short peakfloat peaklong"
 export SYB_SERVER="SYBASE_`uname -n`"
 export EXT_TIME=`date "+%Y%m%d_%H%M%S"`
 export LOG=extract_history_${EXT_TIME}.log
-export WORK_DIR=$HOME/history_extract
+export WORK_DIR=$HOME/extract_history
 export BCP_LINES=10000000
 export SYB_CONNECT="-Usa -P${SA_PASSWD} -w300 -S${SYB_SERVER}"
 
@@ -350,6 +350,14 @@ for DATA_TYPE in ${DATA_TYPES}; do
 if [ ${DATA_TYPE} == "float" ]; then
 cat >>create_abb_views.sql << EOF
 create view ABB_WG_${DATA_TYPE}_v as
+/**********************************************************************************
+ New SQL for data lists using the abb_map table
+select
+  str_replace(convert(char(14),T2.OBE_IRN) || ";" ||
+    str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
+      ":",NULL),"-",NULL),".",NULL) || ";" || str(Value,30,9) || ";1;0;"," ",NULL) ABB_row
+  from WG_float T1,abb_map T2 where T1.ObjectId=T2.ObjectId and T2.OBE_IRN>0 and T1.AttributeId=630
+***********************************************************************************/
 select
   str_replace(convert(char(14),ObjectId) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
