@@ -5,7 +5,7 @@
 # File:    wspl_extract_history.sh
 # Date:    5 Aug 2021
 # Author:  Douglas Kruger
-# Version: 1.1
+# Version: 1.2
 #
 # Description:
 # This script exports out the history data.
@@ -165,6 +165,10 @@ EOF
 isql ${SYB_CONNECT} -ocount_history.sql -b <<EOF
 set nocount on
 go
+use ${HISTORY_DB}
+go
+select 'use ${HISTORY_DB}' || char(10) || 'go'
+go
 select 'set nocount on' || char(10) || 'go'
 select 'set statistics io, time on' || char(10) || 'go'
 go
@@ -246,6 +250,10 @@ isql ${SYB_CONNECT} -ocount_history_pointlist.sql -b <<EOF
 set nocount on
 go
 select 'set nocount on' || char(10) || 'go'
+go
+use ${HISTORY_DB}
+go
+select 'use ${HISTORY_DB}' || char(10) || 'go'
 go
 select 'select "*** ObjectTypes and AttributeTypes ***"' || char(10) || 'go'
 go
