@@ -5,7 +5,7 @@
 # File:    wspl_extract_history.sh
 # Date:    5 Aug 2021
 # Author:  Douglas Kruger
-# Version: 1.4
+# Version: 1.5
 #
 # Description:
 # This script exports out the history data.
@@ -361,7 +361,8 @@ select
 select
   str_replace(convert(char(14),ObjectId) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
-      ":",NULL),"-",NULL),".",NULL) || ";" || str(Value,30,9) || ";1;0;"," ",NULL) ABB_row from WG_${DATA_TYPE}
+      ":",NULL),"-",NULL),".",NULL) || ";" || str(Value,30,9) || ";1;0;"," ",NULL) ABB_row 
+	  from WG_${DATA_TYPE}
 go
 
 create view ABB_WG_${DATA_TYPE}_all_v as
@@ -369,7 +370,8 @@ select
   ObjectId, convert(char(23),Time,140) Time,MicroSeconds,Value,
   str_replace(convert(char(14),ObjectId) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
-      ":",NULL),"-",NULL),".",NULL) || ";" || str(Value,30,9) || ";1;0;"," ",NULL) ABB_row from WG_${DATA_TYPE}
+      ":",NULL),"-",NULL),".",NULL) || ";" || str(Value,30,9) || ";1;0;"," ",NULL) ABB_row 
+	  from WG_${DATA_TYPE}
 go
 
 EOF
@@ -378,9 +380,10 @@ else
 cat >>create_abb_views.sql << EOF
 create view ABB_WG_${DATA_TYPE}_v as
 select
-  str_replace(convert(char(14),ObjectId) || ";" ||
+  str_replace(convert(char(14),T1.ObjectId) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
-      ":",NULL),"-",NULL),".",NULL) || ";" || convert(char(20),Value) || ";1;0;"," ",NULL) ABB_row from WG_${DATA_TYPE}
+      ":",NULL),"-",NULL),".",NULL) || ";" || convert(char(20),Value) || ";1;0;"," ",NULL) ABB_row 
+	  from WG_${DATA_TYPE} T1,abb_map T2 where T1.ObjectId=T2.ObjectId and T2.OBE_IRN>0
 go
 
 create view ABB_WG_${DATA_TYPE}_all_v as
@@ -388,7 +391,8 @@ select
   ObjectId, convert(char(23),Time,140) Time,MicroSeconds,Value,
   str_replace(convert(char(14),ObjectId) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
-      ":",NULL),"-",NULL),".",NULL) || ";" || convert(char(20),Value) || ";1;0;"," ",NULL) ABB_row from WG_${DATA_TYPE}
+      ":",NULL),"-",NULL),".",NULL) || ";" || convert(char(20),Value) || ";1;0;"," ",NULL) ABB_row 
+	  from WG_${DATA_TYPE}
 go
 
 EOF
