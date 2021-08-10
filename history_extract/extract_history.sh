@@ -28,6 +28,7 @@
 # ******************************************************************************
 export SA_PASSWD=SET_PASSWORD
 export BASE_DB=SET_BASE_DB
+export BASE_DATE="2014-08-01"  # in YYYY-MM-DD format used to determine earliest history date
 
 # ******************************************************************************
 # Define the data types of interest in the history database
@@ -745,22 +746,36 @@ EOF
 
 	for DATA_TYPE in ${DATA_TYPES}; do
 		cat >>create_abb_views.sql << EOF
-drop view ABB_WG_${DATA_TYPE}_v
-go
-drop view ABB_WG_${DATA_TYPE}_all_v
-go
+
 EOF
 	done	
 
 	for DATA_TYPE in ${DATA_TYPES}; do
 		if [ ${DATA_TYPE} == "float" ]; then
 			cat >>create_abb_views.sql << EOF
+drop view ABB_WG_${DATA_TYPE}_v
+go
+drop view ABB_WG_${DATA_TYPE}_other_v
+go
+drop view ABB_WG_${DATA_TYPE}_all_v
+go
+
 create view ABB_WG_${DATA_TYPE}_v as
 select
   str_replace(convert(char(14),T2.ABB_NM_IRN) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
       ":",NULL),"-",NULL),".",NULL) || ";" || str(Value,30,9) || ";1;0;"," ",NULL) ABB_row
   from WG_float T1,abb_mapping T2 where T1.ObjectId=T2.ObjectId and T2.ABB_NM_IRN>0 and T1.AttributeId=630
+  and Time >= '${BASE_DATE}'
+go
+
+create view ABB_WG_${DATA_TYPE}_other_v as
+select
+  str_replace(convert(char(14),T2.ABB_NM_IRN) || ";" ||
+    str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
+      ":",NULL),"-",NULL),".",NULL) || ";" || str(Value,30,9) || ";1;0;"," ",NULL) ABB_row
+  from WG_float T1,abb_mapping T2 where T1.ObjectId=T2.ObjectId and T2.ABB_NM_IRN>0 and T1.AttributeId!=630
+  and Time >= '${BASE_DATE}'
 go
 
 create view ABB_WG_${DATA_TYPE}_all_v as
@@ -769,18 +784,24 @@ select
   str_replace(convert(char(14),ObjectId) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
       ":",NULL),"-",NULL),".",NULL) || ";" || str(Value,30,9) || ";1;0;"," ",NULL) ABB_row 
-	  from WG_${DATA_TYPE}
+	  from WG_${DATA_TYPE} where Time >= '${BASE_DATE}'
 go
 
 EOF
 		else
 		cat >>create_abb_views.sql << EOF
+drop view ABB_WG_${DATA_TYPE}_v
+go
+drop view ABB_WG_${DATA_TYPE}_all_v
+go
+
 create view ABB_WG_${DATA_TYPE}_v as
 select
   str_replace(convert(char(14),T2.ABB_NM_IRN) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
       ":",NULL),"-",NULL),".",NULL) || ";" || convert(char(20),Value) || ";1;0;"," ",NULL) ABB_row 
 	  from WG_${DATA_TYPE} T1,abb_mapping T2 where T1.ObjectId=T2.ObjectId and T2.ABB_NM_IRN>0
+	  and Time >= '${BASE_DATE}'
 go
 
 create view ABB_WG_${DATA_TYPE}_all_v as
@@ -789,7 +810,7 @@ select
   str_replace(convert(char(14),ObjectId) || ";" ||
     str_replace(str_replace(str_replace(convert(CHAR(23),dateadd(us, MicroSeconds, convert(bigdatetime, Time)),140),
       ":",NULL),"-",NULL),".",NULL) || ";" || convert(char(20),Value) || ";1;0;"," ",NULL) ABB_row 
-	  from WG_${DATA_TYPE}
+	  from WG_${DATA_TYPE} where Time >= '${BASE_DATE}'
 go
 
 EOF
@@ -868,6 +889,26 @@ extract_history()
 			gzip ${FILENAME}-*
 			echo "*** Finished at `date`"
 			echo "*******************************************************************************"
+			
+			# Float is a special case where there are two groups - Value attribute and the other attributes
+			if [ ${DATA_TYPE} == "float" ]; then
+				echo "*******************************************************************************"
+				echo "*** Stated Extracting ABB_WG_${DATA_TYPE} - other at `date`"
+				export FILENAME="ABB_WG_${DATA_TYPE}_other_${EXT_TIME}"
+				echo "Executing: bcp ${HISTORY_DB}..ABB_WG_${DATA_TYPE}_v out bcp_pipe_file -e ${FILENAME}.err \
+						-b 100000 -Usa -P${SA_PASSWD} -c -t \";\""
+				# Put the BCP in the backgroup and then start the split command
+				bcp ${HISTORY_DB}..ABB_WG_${DATA_TYPE}_other_v out bcp_pipe_file -e ${FILENAME}.err \
+						-b 100000 -Usa -P${SA_PASSWD} -c -t ";" &
+				split -l ${BCP_LINES} -a 3 bcp_pipe_file ${FILENAME}-
+
+				# Sleep for 2 seconds to ensure file completion
+				sleep 2
+				echo "Gzipping ${FILENAME}-* at `date`"
+				gzip ${FILENAME}-*
+				echo "*** Finished at `date`"
+				echo "*******************************************************************************"			
+			fi
 	) >> ${LOG}
 	done
 	rm bcp_pipe_file
@@ -945,7 +986,6 @@ if [ ${CREATE_SQL} -eq 1 ]; then
 	create_vista_object_sql
 	create_history_count_sql
 	create_history_support_count_sql
-
 fi
 
 if [ ${CREATE_ABB_IN_DB} -eq 1 ]; then
