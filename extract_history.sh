@@ -50,8 +50,8 @@
 # Timezone offset - 8 hours
 # dateadd(us, MicroSeconds, convert(bigdatetime, dateadd(hour,8,Time))) 
 # ******************************************************************************
-export SA_PASSWD=scadacom
-export BASE_DB=powergas
+export SA_PASSWD=
+export BASE_DB=
 export INSERT_ABB_ANALOG_MAPPING_FILE="/export/sybase/extract_2022/insert_abb_analog_mapping_20220822.sql"
 export INSERT_ABB_DIGITAL_MAPPING_FILE="/export/sybase/extract_2022/insert_abb_digital_mapping_20220829.sql"
 export BASE_DATE="2015-09-01"  # in YYYY-MM-DD format used to determine earliest history date
